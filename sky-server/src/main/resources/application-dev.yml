@@ -1,8 +1,13 @@
+spring:
+  config:
+    import: application-secret.yml
+
 sky:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     host: localhost
     port: 3306
     database: sky_take_out
-    username: root
-    password: 123456
+  alioss:
+    endpoint: oss-cn-hangzhou.aliyuncs.com
+    bucket-name: adc-lab-l4h9kl2i-f1hv0qk7
