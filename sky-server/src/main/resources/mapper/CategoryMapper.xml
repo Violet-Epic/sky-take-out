@@ -8,4 +8,17 @@
         VALUES (#{type}, #{name}, #{sort}, #{status}, #{createTime}, #{updateTime}, #{createUser}, #{updateUser})
     </insert>
 
+    <select id="query" resultType="com.sky.entity.Category">
+        SELECT * FROM category
+        <where>
+            <if test="name != null and name != ''">
+                name LIKE concat('%', #{name}, '%')
+            </if>
+            <if test="type != null">
+                AND type = #{type}
+            </if>
+        </where>
+        ORDER BY sort ASC, create_time DESC
+    </select>
+
 </mapper>

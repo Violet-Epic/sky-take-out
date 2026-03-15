@@ -1,10 +1,14 @@
 package com.sky.service.impl;
 
 import com.sky.dto.CategoryDTO;
+import com.sky.dto.CategoryPageQueryDTO;
 import com.sky.entity.Category;
 import com.sky.mapper.CategoryMapper;
 import com.sky.service.CategoryService;
 import com.sky.context.BaseContext;
+import com.sky.result.PageResult;
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -33,5 +37,17 @@ public class CategoryServiceImpl implements CategoryService {
 
         categoryMapper.insert(category);
         return category;
+    }
+
+    @Override
+    public PageResult pageQuery(CategoryPageQueryDTO dto) {
+        // 1. 开启分页
+        PageHelper.startPage(dto.getPage(), dto.getPageSize());
+
+        // 2. 查询
+        Page<Category> page = (Page<Category>) categoryMapper.query(dto);
+
+        // 3. 封装结果
+        return new PageResult(page.getTotal(), page.getResult());
     }
 }
