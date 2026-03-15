@@ -21,4 +21,25 @@
         ORDER BY sort ASC, create_time DESC
     </select>
 
+    <update id="update" parameterType="com.sky.entity.Category">
+        UPDATE category
+        <set>
+            <if test="type != null">type = #{type},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="updateUser != null">update_user = #{updateUser},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <select id="getById" resultType="com.sky.entity.Category">
+        SELECT * FROM category WHERE id = #{id}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM category WHERE id = #{id}
+    </delete>
+
 </mapper>

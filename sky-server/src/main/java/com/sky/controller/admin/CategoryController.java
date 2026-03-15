@@ -38,4 +38,44 @@ public class CategoryController {
         return Result.success(pageResult);
     }
 
+    /**
+     * 启用/禁用分类
+     */
+    @PostMapping("/status/{status}")
+    public Result startOrStop(@PathVariable Integer status, Long id) {
+        log.info("启用/禁用分类：status={}, id={}", status, id);
+        categoryService.startOrStop(status, id);
+        return Result.success();
+    }
+
+    /**
+     * 根据id查询分类
+     */
+    @GetMapping("/{id}")
+    public Result<Category> getById(@PathVariable Long id) {
+        log.info("根据id查询分类：{}", id);
+        Category category = categoryService.getById(id);
+        return Result.success(category);
+    }
+
+    /**
+     * 编辑分类
+     */
+    @PutMapping
+    public Result update(@RequestBody CategoryDTO categoryDTO) {
+        log.info("编辑分类：{}", categoryDTO);
+        categoryService.update(categoryDTO);
+        return Result.success();
+    }
+
+    /**
+     * 删除分类
+     */
+    @DeleteMapping
+    public Result deleteById(Long id) {
+        log.info("删除分类：{}", id);
+        categoryService.deleteById(id);
+        return Result.success();
+    }
+
 }

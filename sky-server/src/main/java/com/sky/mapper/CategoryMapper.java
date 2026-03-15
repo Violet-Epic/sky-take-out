@@ -18,4 +18,19 @@ public interface CategoryMapper {
      * 分页查询分类
      */
     List<Category> query(CategoryPageQueryDTO dto);
+
+    /**
+     * 更新分类
+     */
+    void update(Category category);
+
+    /**
+     * 根据id查询分类
+     */
+    Category getById(Long id);
+
+    /**
+     * 根据id删除分类
+     */
+    void deleteById(Long id);
 }
