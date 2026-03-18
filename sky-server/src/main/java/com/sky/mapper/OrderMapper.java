@@ -47,4 +47,28 @@ public interface OrderMapper {
      * 分页查询订单
      */
     Page<Orders> pageQuery(OrdersPageQueryDTO dto);
+
+    /**
+     * 根据状态统计订单数量
+     */
+    @Select("SELECT COUNT(*) FROM orders WHERE status = #{status}")
+    Integer countByStatus(Integer status);
+
+    /**
+     * 统计某个日期范围内的营业额（已完成订单）
+     */
+    @Select("SELECT SUM(amount) FROM orders WHERE status = 5 AND order_time BETWEEN #{begin} AND #{end}")
+    Double sumAmountByDate(java.time.LocalDateTime begin, java.time.LocalDateTime end);
+
+    /**
+     * 统计某个日期范围内的订单数
+     */
+    @Select("SELECT COUNT(*) FROM orders WHERE order_time BETWEEN #{begin} AND #{end}")
+    Integer countOrderByDate(java.time.LocalDateTime begin, java.time.LocalDateTime end);
+
+    /**
+     * 统计某个日期范围内的有效订单数（已完成）
+     */
+    @Select("SELECT COUNT(*) FROM orders WHERE status = 5 AND order_time BETWEEN #{begin} AND #{end}")
+    Integer countValidOrderByDate(java.time.LocalDateTime begin, java.time.LocalDateTime end);
 }

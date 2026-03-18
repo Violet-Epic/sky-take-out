@@ -1,8 +1,14 @@
 package com.sky.service.impl;
 
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import com.sky.constant.StatusConstant;
 import com.sky.context.BaseContext;
+import com.sky.dto.OrdersCancelDTO;
+import com.sky.dto.OrdersConfirmDTO;
+import com.sky.dto.OrdersPageQueryDTO;
 import com.sky.dto.OrdersPaymentDTO;
+import com.sky.dto.OrdersRejectionDTO;
 import com.sky.dto.OrdersSubmitDTO;
 import com.sky.entity.AddressBook;
 import com.sky.entity.OrderDetail;
@@ -16,6 +22,7 @@ import com.sky.mapper.OrderMapper;
 import com.sky.mapper.ShoppingCartMapper;
 import com.sky.result.PageResult;
 import com.sky.service.OrderService;
+import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
 import lombok.RequiredArgsConstructor;
@@ -149,8 +156,31 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public PageResult page(int page, int pageSize, Integer status) {
-        // TODO: 分页查询实现
-        return null;
+        // 1. 设置分页参数
+        PageHelper.startPage(page, pageSize);
+
+        // 2. 构建查询条件
+        OrdersPageQueryDTO dto = new OrdersPageQueryDTO();
+        dto.setUserId(BaseContext.getCurrentId());
+        dto.setStatus(status);
+
+        // 3. 分页查询
+        Page<Orders> pageResult = orderMapper.pageQuery(dto);
+
+        // 4. 封装成 OrderVO
+        List<OrderVO> list = new ArrayList<>();
+        for (Orders orders : pageResult.getResult()) {
+            OrderVO vo = new OrderVO();
+            BeanUtils.copyProperties(orders, vo);
+
+            // 查询订单明细
+            List<OrderDetail> orderDetails = orderDetailMapper.getByOrderId(orders.getId());
+            vo.setOrderDetailList(orderDetails);
+
+            list.add(vo);
+        }
+
+        return new PageResult(pageResult.getTotal(), list);
     }
 
     /**
@@ -158,8 +188,21 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public OrderVO getById(Long id) {
-        // TODO: 实现
-        return null;
+        // 1. 查询订单
+        Orders orders = orderMapper.getById(id);
+        if (orders == null) {
+            throw new OrderBusinessException("订单不存在");
+        }
+
+        // 2. 查询订单明细
+        List<OrderDetail> orderDetails = orderDetailMapper.getByOrderId(id);
+
+        // 3. 封装成 OrderVO
+        OrderVO vo = new OrderVO();
+        BeanUtils.copyProperties(orders, vo);
+        vo.setOrderDetailList(orderDetails);
+
+        return vo;
     }
 
     /**
@@ -167,7 +210,24 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public void cancel(Long id) {
-        // TODO: 实现
+        // 1. 查询订单
+        Orders orders = orderMapper.getById(id);
+        if (orders == null) {
+            throw new OrderBusinessException("订单不存在");
+        }
+
+        // 2. 校验订单状态（只有待付款和待接单状态可以取消）
+        if (orders.getStatus() > Orders.TO_BE_CONFIRMED) {
+            throw new OrderBusinessException("订单状态不允许取消");
+        }
+
+        // 3. 更新订单状态
+        orders.setStatus(Orders.CANCELLED);
+        orders.setCancelReason("用户取消");
+        orders.setCancelTime(LocalDateTime.now());
+        orderMapper.update(orders);
+
+        log.info("订单取消成功: orderId={}", id);
     }
 
     /**
@@ -175,6 +235,167 @@ public class OrderServiceImpl implements OrderService {
      */
     @Override
     public void repetition(Long id) {
-        // TODO: 实现
+        // 1. 查询订单明细
+        List<OrderDetail> orderDetails = orderDetailMapper.getByOrderId(id);
+        if (orderDetails == null || orderDetails.isEmpty()) {
+            throw new OrderBusinessException("订单明细为空");
+        }
+
+        Long userId = BaseContext.getCurrentId();
+
+        // 2. 将订单明细添加到购物车
+        for (OrderDetail detail : orderDetails) {
+            ShoppingCart cart = ShoppingCart.builder()
+                    .userId(userId)
+                    .dishId(detail.getDishId())
+                    .setmealId(detail.getSetmealId())
+                    .dishFlavor(detail.getDishFlavor())
+                    .number(detail.getNumber())
+                    .amount(detail.getAmount())
+                    .name(detail.getName())
+                    .image(detail.getImage())
+                    .build();
+            shoppingCartMapper.insert(cart);
+        }
+
+        log.info("再来一单成功: orderId={}, userId={}", id, userId);
+    }
+
+    // ==================== 管理端方法 ====================
+
+    /**
+     * 管理端 - 条件查询订单
+     */
+    @Override
+    public PageResult conditionSearch(OrdersPageQueryDTO dto) {
+        // 1. 设置分页参数
+        PageHelper.startPage(dto.getPage(), dto.getPageSize());
+
+        // 2. 分页查询
+        Page<Orders> pageResult = orderMapper.pageQuery(dto);
+
+        // 3. 封装成 OrderVO
+        List<OrderVO> list = new ArrayList<>();
+        for (Orders orders : pageResult.getResult()) {
+            OrderVO vo = new OrderVO();
+            BeanUtils.copyProperties(orders, vo);
+
+            // 查询订单明细
+            List<OrderDetail> orderDetails = orderDetailMapper.getByOrderId(orders.getId());
+            vo.setOrderDetailList(orderDetails);
+
+            // 拼接订单菜品信息（用于展示）
+            String orderDishes = getOrderDishes(orderDetails);
+            vo.setOrderDishes(orderDishes);
+
+            list.add(vo);
+        }
+
+        return new PageResult(pageResult.getTotal(), list);
+    }
+
+    /**
+     * 各个状态的订单数量统计
+     */
+    @Override
+    public OrderStatisticsVO statistics() {
+        // 待接单数量（status = 2）
+        Integer toBeConfirmed = orderMapper.countByStatus(Orders.TO_BE_CONFIRMED);
+        // 待派送数量（status = 3）
+        Integer confirmed = orderMapper.countByStatus(Orders.CONFIRMED);
+        // 派送中数量（status = 4）
+        Integer deliveryInProgress = orderMapper.countByStatus(Orders.DELIVERY_IN_PROGRESS);
+
+        return OrderStatisticsVO.builder()
+                .toBeConfirmed(toBeConfirmed)
+                .confirmed(confirmed)
+                .deliveryInProgress(deliveryInProgress)
+                .build();
+    }
+
+    /**
+     * 接单
+     */
+    @Override
+    public void confirm(OrdersConfirmDTO dto) {
+        Orders orders = Orders.builder()
+                .id(dto.getId())
+                .status(Orders.CONFIRMED)
+                .build();
+        orderMapper.update(orders);
+        log.info("接单成功: orderId={}", dto.getId());
+    }
+
+    /**
+     * 拒单
+     */
+    @Override
+    public void rejection(OrdersRejectionDTO dto) {
+        Orders orders = Orders.builder()
+                .id(dto.getId())
+                .status(Orders.CANCELLED)
+                .rejectionReason(dto.getRejectionReason())
+                .build();
+        orderMapper.update(orders);
+        log.info("拒单成功: orderId={}, reason={}", dto.getId(), dto.getRejectionReason());
+    }
+
+    /**
+     * 管理端 - 取消订单
+     */
+    @Override
+    public void adminCancel(OrdersCancelDTO dto) {
+        Orders orders = Orders.builder()
+                .id(dto.getId())
+                .status(Orders.CANCELLED)
+                .cancelReason(dto.getCancelReason())
+                .cancelTime(LocalDateTime.now())
+                .build();
+        orderMapper.update(orders);
+        log.info("取消订单成功: orderId={}, reason={}", dto.getId(), dto.getCancelReason());
+    }
+
+    /**
+     * 派送订单
+     */
+    @Override
+    public void delivery(Long id) {
+        Orders orders = Orders.builder()
+                .id(id)
+                .status(Orders.DELIVERY_IN_PROGRESS)
+                .build();
+        orderMapper.update(orders);
+        log.info("派送订单成功: orderId={}", id);
+    }
+
+    /**
+     * 完成订单
+     */
+    @Override
+    public void complete(Long id) {
+        Orders orders = Orders.builder()
+                .id(id)
+                .status(Orders.COMPLETED)
+                .deliveryTime(LocalDateTime.now())
+                .build();
+        orderMapper.update(orders);
+        log.info("完成订单成功: orderId={}", id);
+    }
+
+    // ==================== 私有方法 ====================
+
+    /**
+     * 拼接订单菜品信息
+     */
+    private String getOrderDishes(List<OrderDetail> orderDetails) {
+        StringBuilder sb = new StringBuilder();
+        for (OrderDetail detail : orderDetails) {
+            sb.append(detail.getName());
+            if (detail.getDishFlavor() != null) {
+                sb.append("(").append(detail.getDishFlavor()).append(")");
+            }
+            sb.append("*").append(detail.getNumber()).append(";");
+        }
+        return sb.toString();
     }
 }
