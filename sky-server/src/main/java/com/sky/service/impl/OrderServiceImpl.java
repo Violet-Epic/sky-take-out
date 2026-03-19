@@ -25,15 +25,20 @@ import com.sky.service.OrderService;
 import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
+import com.sky.websocket.WebSocketServer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -141,14 +146,38 @@ public class OrderServiceImpl implements OrderService {
         if (orders == null) {
             throw new OrderBusinessException("订单不存在");
         }
-        
+
         // 更新订单状态
         orders.setPayStatus(Orders.PAID);
         orders.setStatus(Orders.TO_BE_CONFIRMED);
         orders.setCheckoutTime(LocalDateTime.now());
         orderMapper.update(orders);
-        
+
+        // 通过 WebSocket 推送消息给管理端
+        Map<String, Object> message = new HashMap<>();
+        message.put("type", 1);  // 1 表示来单提醒
+        message.put("orderId", orders.getId());
+        message.put("content", "订单号：" + orders.getNumber());
+
+        // 广播给所有在线客户端（管理端会处理 type=1 的消息）
+        for (WebSocketServer server : WebSocketServer.getAllInstances()) {
+            server.sendToAll(toJsonString(message));
+        }
+
         log.info("支付成功: orderNumber={}", dto.getOrderNumber());
+    }
+
+    /**
+     * 对象转 JSON 字符串
+     */
+    private String toJsonString(Object obj) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.writeValueAsString(obj);
+        } catch (Exception e) {
+            log.error("JSON 转换失败", e);
+            return "{}";
+        }
     }
 
     /**
