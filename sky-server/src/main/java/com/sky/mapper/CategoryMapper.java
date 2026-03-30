@@ -1,8 +1,14 @@
 package com.sky.mapper;
 
+import com.github.pagehelper.Page;
+import com.sky.annotation.AutoFill;
+import com.sky.enumeration.OperationType;
 import com.sky.dto.CategoryPageQueryDTO;
 import com.sky.entity.Category;
+import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -10,27 +16,36 @@ import java.util.List;
 public interface CategoryMapper {
 
     /**
-     * 新增分类
+     * 插入数据
+     * @param category
      */
+    @AutoFill(OperationType.INSERT)
     void insert(Category category);
 
     /**
-     * 分页查询分类
+     * 分页查询
+     * @param categoryPageQueryDTO
+     * @return
      */
-    List<Category> query(CategoryPageQueryDTO dto);
-
-    /**
-     * 更新分类
-     */
-    void update(Category category);
-
-    /**
-     * 根据id查询分类
-     */
-    Category getById(Long id);
+    Page<Category> pageQuery(CategoryPageQueryDTO categoryPageQueryDTO);
 
     /**
      * 根据id删除分类
+     * @param id
      */
-    void deleteById(Long id);
+    void deleteById(@Param("id") Long id);
+
+    /**
+     * 根据id修改分类
+     * @param category
+     */
+    @AutoFill(OperationType.UPDATE)
+    void update(Category category);
+
+    /**
+     * 根据类型查询分类
+     * @param type
+     * @return
+     */
+    List<Category> list(Integer type);
 }

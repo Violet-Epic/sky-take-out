@@ -1,13 +1,28 @@
-spring:
-  config:
-    import: application-secret.yml
-
 sky:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     host: localhost
     port: 3306
     database: sky_take_out
+    username: root
+    password: 123456
   alioss:
     endpoint: oss-cn-hangzhou.aliyuncs.com
+    access-key-id: your-access-key-id
+    access-key-secret: your-access-key-secret
     bucket-name: adc-lab-l4h9kl2i-f1hv0qk7
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    password: 178168
+    database: 0
+  wechat:
+    appid: wx9e8dde9d2df9df58
+    secret: your-wechat-pay-secret
+    mchid: 1561414331
+    mchSerialNo: 4B3B3DC35414AD50B1B755BAF8DE9CC7CF407606
+    privateKeyFilePath: D:\apiclient_key.pem
+    apiV3Key: CZBK51236435wxpay435434323FFDuv3
+    weChatPayCertFilePath: D:\wechatpay_166D96F876F45C7D07CE98952A96EC980368ACFC.pem
+    notifyUrl: https://www.weixin.qq.com/wxpay/pay.php
+    refundNotifyUrl: https://www.weixin.qq.com/wxpay/pay.php

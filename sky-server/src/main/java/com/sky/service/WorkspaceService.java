@@ -1,34 +1,36 @@
 package com.sky.service;
 
-import com.sky.vo.OrderReportVO;
-import com.sky.vo.SalesTop10ReportVO;
-import com.sky.vo.TurnoverReportVO;
-import com.sky.vo.UserReportVO;
+import com.sky.vo.BusinessDataVO;
+import com.sky.vo.DishOverViewVO;
+import com.sky.vo.OrderOverViewVO;
+import com.sky.vo.SetmealOverViewVO;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-/**
- * 数据统计服务接口
- */
 public interface WorkspaceService {
+    /**
+     * 根据时间段统计营业数据
+     * @param begin
+     * @param end
+     * @return
+     */
+    BusinessDataVO getBusinessData(LocalDateTime begin, LocalDateTime end);
 
     /**
-     * 营业额统计
+     * 查询订单管理数据
+     * @return
      */
-    TurnoverReportVO getTurnoverStatistics(LocalDate begin, LocalDate end);
+    OrderOverViewVO getOrderOverView();
 
     /**
-     * 用户统计
+     * 查询菜品总览
+     * @return
      */
-    UserReportVO getUserStatistics(LocalDate begin, LocalDate end);
+    DishOverViewVO getDishOverView();
 
     /**
-     * 订单统计
+     * 查询套餐总览
+     * @return
      */
-    OrderReportVO getOrderStatistics(LocalDate begin, LocalDate end);
-
-    /**
-     * 销量排名Top10
-     */
-    SalesTop10ReportVO getSalesTop10(LocalDate begin, LocalDate end);
+    SetmealOverViewVO getSetmealOverView();
 }

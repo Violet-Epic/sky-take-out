@@ -5,17 +5,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.server.standard.ServerEndpointExporter;
 
 /**
- * WebSocket 配置类
+ * WebSocket配置类，用于注册WebSocket的Bean
  */
 @Configuration
 public class WebSocketConfiguration {
 
-    /**
-     * 注册 WebSocket 端点
-     * 会自动注册使用了 @ServerEndpoint 注解的类
-     */
     @Bean
     public ServerEndpointExporter serverEndpointExporter() {
         return new ServerEndpointExporter();
     }
+
 }

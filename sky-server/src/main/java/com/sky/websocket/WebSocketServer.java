@@ -1,122 +1,70 @@
 package com.sky.websocket;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import javax.websocket.*;
+import javax.websocket.OnClose;
+import javax.websocket.OnMessage;
+import javax.websocket.OnOpen;
+import javax.websocket.Session;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * WebSocket 服务端
- *
- * @ServerEndpoint("/ws/{sid}") - 定义 WebSocket 端点
- * sid 是客户端标识（管理端、用户端等）
+ * WebSocket服务
  */
 @Component
 @ServerEndpoint("/ws/{sid}")
-@Slf4j
 public class WebSocketServer {
+    //存放会话对象
+    private static Map<String, Session> sessionMap = new HashMap();
 
     /**
-     * 存放所有在线连接
-     * key: sid（客户端标识）
-     * value: WebSocketServer 实例
-     */
-    private static final Map<String, WebSocketServer> onlineSessions = new HashMap<>();
-
-    /**
-     * 当前连接的 session
-     */
-    private Session session;
-
-    /**
-     * 当前连接的 sid
-     */
-    private String sid;
-
-    /**
-     * 连接建立时调用
+     * 连接建立成功调用的方法
      */
     @OnOpen
     public void onOpen(Session session, @PathParam("sid") String sid) {
-        this.session = session;
-        this.sid = sid;
-        onlineSessions.put(sid, this);
-        log.info("WebSocket 连接建立: sid={}, 当前在线数={}", sid, onlineSessions.size());
+        System.out.println("客户端：" + sid + "建立连接");
+        sessionMap.put(sid, session);
     }
 
     /**
-     * 收到客户端消息时调用
+     * 收到客户端消息后调用的方法
+     *
+     * @param message 客户端发送过来的消息
      */
     @OnMessage
-    public void onMessage(String message, Session session) {
-        log.info("收到客户端消息: sid={}, message={}", sid, message);
+    public void onMessage(String message, @PathParam("sid") String sid) {
+        System.out.println("收到来自客户端：" + sid + "的信息:" + message);
     }
 
     /**
-     * 连接关闭时调用
+     * 连接关闭调用的方法
+     *
+     * @param sid
      */
     @OnClose
-    public void onClose() {
-        onlineSessions.remove(sid);
-        log.info("WebSocket 连接关闭: sid={}, 当前在线数={}", sid, onlineSessions.size());
+    public void onClose(@PathParam("sid") String sid) {
+        System.out.println("连接断开:" + sid);
+        sessionMap.remove(sid);
     }
 
     /**
-     * 发生错误时调用
+     * 群发
+     *
+     * @param message
      */
-    @OnError
-    public void onError(Session session, Throwable error) {
-        log.error("WebSocket 发生错误: sid={}", sid, error);
-    }
-
-    /**
-     * 向指定客户端发送消息
-     */
-    public void sendToOne(String sid, String message) {
-        WebSocketServer server = onlineSessions.get(sid);
-        if (server != null && server.session != null) {
+    public void sendToAllClient(String message) {
+        Collection<Session> sessions = sessionMap.values();
+        for (Session session : sessions) {
             try {
-                server.session.getBasicRemote().sendText(message);
-                log.info("发送消息给 {}: {}", sid, message);
-            } catch (IOException e) {
-                log.error("发送消息失败: sid={}", sid, e);
+                //服务器向客户端发送消息
+                session.getBasicRemote().sendText(message);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
-    }
-
-    /**
-     * 向所有客户端广播消息
-     */
-    public void sendToAll(String message) {
-        Collection<WebSocketServer> servers = onlineSessions.values();
-        for (WebSocketServer server : servers) {
-            if (server.session != null) {
-                try {
-                    server.session.getBasicRemote().sendText(message);
-                } catch (IOException e) {
-                    log.error("广播消息失败: sid={}", server.sid, e);
-                }
-            }
-        }
-        log.info("广播消息给所有客户端: 当前在线数={}", servers.size());
-    }
-
-    /**
-     * 获取静态实例（供外部调用）
-     * 因为 Spring 默认是单例，但 @ServerEndpoint 会为每个连接创建新实例
-     * 所以用静态 map 存储所有连接
-     */
-    public static WebSocketServer getInstance(String sid) {
-        return onlineSessions.get(sid);
-    }
-
-    public static Collection<WebSocketServer> getAllInstances() {
-        return onlineSessions.values();
     }
 }

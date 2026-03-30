@@ -1,6 +1,5 @@
 package com.sky.entity;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -40,10 +39,8 @@ public class Dish implements Serializable {
     //0 停售 1 起售
     private Integer status;
 
-    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDateTime createTime;
 
-    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDateTime updateTime;
 
     private Long createUser;

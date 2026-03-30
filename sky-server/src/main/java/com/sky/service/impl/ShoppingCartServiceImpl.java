@@ -5,130 +5,114 @@ import com.sky.dto.ShoppingCartDTO;
 import com.sky.entity.Dish;
 import com.sky.entity.Setmeal;
 import com.sky.entity.ShoppingCart;
-import com.sky.exception.ShoppingCartBusinessException;
 import com.sky.mapper.DishMapper;
 import com.sky.mapper.SetmealMapper;
 import com.sky.mapper.ShoppingCartMapper;
 import com.sky.service.ShoppingCartService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * 购物车服务实现类
- */
 @Service
-@Slf4j
-@RequiredArgsConstructor
 public class ShoppingCartServiceImpl implements ShoppingCartService {
 
-    private final ShoppingCartMapper shoppingCartMapper;
-    private final DishMapper dishMapper;
-    private final SetmealMapper setmealMapper;
+    @Autowired
+    private ShoppingCartMapper shoppingCartMapper;
+
+    @Autowired
+    private DishMapper dishMapper;
+
+    @Autowired
+    private SetmealMapper setmealMapper;
 
     /**
-     * 添加商品到购物车
+     * 添加购物车
+     * @param shoppingCartDTO
      */
     @Override
-    public void add(ShoppingCartDTO dto) {
-        Long userId = BaseContext.getCurrentId();
+    public void addShoppingCart(ShoppingCartDTO shoppingCartDTO) {
+        ShoppingCart shoppingCart = new ShoppingCart();
+        BeanUtils.copyProperties(shoppingCartDTO, shoppingCart);
 
-        // 查询是否已存在
-        ShoppingCart cart = ShoppingCart.builder()
-                .userId(userId)
-                .dishId(dto.getDishId())
-                .setmealId(dto.getSetmealId())
-                .dishFlavor(dto.getDishFlavor())
-                .build();
-        ShoppingCart existing = shoppingCartMapper.getByCondition(cart);
+//        只能查询自己的购物车数据
+        shoppingCart.setUserId(BaseContext.getCurrentId());
 
-        if (existing != null) {
-            // 已存在，数量+1
-            existing.setNumber(existing.getNumber() + 1);
-            shoppingCartMapper.updateNumber(existing);
-            log.info("购物车商品数量+1: {}", existing);
+//        判断当前商品是否在购物车中
+        List<ShoppingCart> shoppingCartsList = shoppingCartMapper.list(shoppingCart);
+
+        if (shoppingCartsList != null && shoppingCartsList.size() > 0) {
+//            如果存在，就更新数量，+1
+            shoppingCart = shoppingCartsList.get(0);
+            shoppingCart.setNumber(shoppingCart.getNumber() + 1);
+            shoppingCartMapper.updateNumberById(shoppingCart);
         } else {
-            // 不存在，新增记录
-            ShoppingCart newCart = ShoppingCart.builder()
-                    .userId(userId)
-                    .dishId(dto.getDishId())
-                    .setmealId(dto.getSetmealId())
-                    .dishFlavor(dto.getDishFlavor())
-                    .number(1)
-                    .createTime(LocalDateTime.now())
-                    .build();
-
-            // 查询菜品或套餐信息
-            if (dto.getDishId() != null) {
-                // 菜品
-                Dish dish = dishMapper.getById(dto.getDishId());
-                newCart.setName(dish.getName());
-                newCart.setAmount(dish.getPrice());
-                newCart.setImage(dish.getImage());
-            } else if (dto.getSetmealId() != null) {
-                // 套餐
-                Setmeal setmeal = setmealMapper.getById(dto.getSetmealId());
-                newCart.setName(setmeal.getName());
-                newCart.setAmount(setmeal.getPrice());
-                newCart.setImage(setmeal.getImage());
+//            如果不存在，插入数据
+            Long dishId = shoppingCartDTO.getDishId();
+            if (dishId != null) {
+//                添加到购物车的是菜品
+                Dish dish = dishMapper.getById(dishId);
+                shoppingCart.setName(dish.getName());
+                shoppingCart.setImage(dish.getImage());
+                shoppingCart.setAmount(dish.getPrice());
+            } else {
+//                添加到购物车的是套餐
+                Setmeal setmeal = setmealMapper.getById(shoppingCartDTO.getSetmealId());
+                shoppingCart.setName(setmeal.getName());
+                shoppingCart.setImage(setmeal.getImage());
+                shoppingCart.setAmount(setmeal.getPrice());
             }
-
-            shoppingCartMapper.insert(newCart);
-            log.info("新增购物车商品: {}", newCart);
+            shoppingCart.setNumber(1);
+            shoppingCart.setCreateTime(LocalDateTime.now());
+            shoppingCartMapper.insert(shoppingCart);
         }
     }
 
     /**
      * 查看购物车
+     * @return
      */
     @Override
-    public List<ShoppingCart> list() {
-        Long userId = BaseContext.getCurrentId();
-        return shoppingCartMapper.getByUserId(userId);
+    public List<ShoppingCart> showShoppingCart() {
+        return shoppingCartMapper.list(ShoppingCart.builder().userId(BaseContext.getCurrentId()).build());
+    }
+
+    /**
+     * 清空购物车商品
+     */
+    @Override
+    public void cleanShoppingCart() {
+        shoppingCartMapper.deleteByUserId(BaseContext.getCurrentId());
     }
 
     /**
      * 删除购物车中一个商品
+     * @param shoppingCartDTO
      */
     @Override
-    public void deleteOne(ShoppingCartDTO dto) {
-        Long userId = BaseContext.getCurrentId();
+    public void subShoppingCart(ShoppingCartDTO shoppingCartDTO) {
+        ShoppingCart shoppingCart = new ShoppingCart();
+        BeanUtils.copyProperties(shoppingCartDTO, shoppingCart);
 
-        // 查询
-        ShoppingCart cart = ShoppingCart.builder()
-                .userId(userId)
-                .dishId(dto.getDishId())
-                .setmealId(dto.getSetmealId())
-                .dishFlavor(dto.getDishFlavor())
-                .build();
-        ShoppingCart existing = shoppingCartMapper.getByCondition(cart);
+//        设置查询条件，查询当前登录用户的购物车数据
+        shoppingCart.setUserId(BaseContext.getCurrentId());
 
-        if (existing == null) {
-            throw new ShoppingCartBusinessException("购物车中没有该商品");
-        }
+        List<ShoppingCart> list = shoppingCartMapper.list(shoppingCart);
+        if (list != null && list.size() > 0) {
+            shoppingCart = list.get(0);
 
-        if (existing.getNumber() > 1) {
-            // 数量>1，减1
-            existing.setNumber(existing.getNumber() - 1);
-            shoppingCartMapper.updateNumber(existing);
-            log.info("购物车商品数量-1: {}", existing);
-        } else {
-            // 数量=1，删除
-            shoppingCartMapper.deleteById(existing.getId());
-            log.info("删除购物车商品: {}", existing);
+            Integer number = shoppingCart.getNumber();
+            if (number == 1) {
+//                当前商品在购物车中份数为1，直接删除当前记录
+                shoppingCartMapper.deleteById(shoppingCart.getId());
+            } else {
+//                当前商品在购物车中的份数不为1，修改份数即可
+                shoppingCart.setNumber(shoppingCart.getNumber() - 1);
+                shoppingCartMapper.updateNumberById(shoppingCart);
+            }
         }
     }
 
-    /**
-     * 清空购物车
-     */
-    @Override
-    public void clean() {
-        Long userId = BaseContext.getCurrentId();
-        shoppingCartMapper.deleteByUserId(userId);
-        log.info("清空购物车, userId={}", userId);
-    }
 }

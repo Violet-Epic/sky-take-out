@@ -6,8 +6,12 @@ import com.sky.result.PageResult;
 import com.sky.result.Result;
 import com.sky.service.SetmealService;
 import com.sky.vo.SetmealVO;
-import lombok.RequiredArgsConstructor;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,70 +21,87 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/admin/setmeal")
+@Api(tags = "套餐相关接口")
 @Slf4j
-@RequiredArgsConstructor
 public class SetmealController {
 
-    private final SetmealService setmealService;
+    @Autowired
+    private SetmealService setmealService;
 
     /**
      * 新增套餐
+     * @param setmealDTO
+     * @return
      */
     @PostMapping
+    @ApiOperation("新增套餐")
+    @CacheEvict(cacheNames = "setmealCache",key = "#setmealDTO.categoryId")
     public Result save(@RequestBody SetmealDTO setmealDTO) {
-        log.info("新增套餐：{}", setmealDTO);
-        setmealService.save(setmealDTO);
+        setmealService.saveWithDish(setmealDTO);
         return Result.success();
     }
 
     /**
      * 分页查询
+     * @param setmealPageQueryDTO
+     * @return
      */
     @GetMapping("/page")
-    public Result<PageResult> page(SetmealPageQueryDTO dto) {
-        log.info("分页查询套餐：{}", dto);
-        PageResult result = setmealService.pageQuery(dto);
-        return Result.success(result);
+    @ApiOperation("分页查询")
+    public Result<PageResult> page(SetmealPageQueryDTO setmealPageQueryDTO) {
+        PageResult pageResult = setmealService.pageQuery(setmealPageQueryDTO);
+        return Result.success(pageResult);
     }
 
     /**
-     * 查询详情
+     * 批量删除套餐
+     * @param ids
+     * @return
+     */
+    @DeleteMapping
+    @ApiOperation("批量删除套餐")
+    @CacheEvict(cacheNames = "setmealCache",allEntries = true)
+    public Result delete(@RequestParam List<Long> ids) {
+        setmealService.deleteBatch(ids);
+        return Result.success();
+    }
+
+    /**
+     * 根据id查询套餐
+     * @param id
+     * @return
      */
     @GetMapping("/{id}")
+    @ApiOperation("根据id查询套餐")
     public Result<SetmealVO> getById(@PathVariable Long id) {
-        log.info("查询套餐：id={}", id);
-        SetmealVO setmealVO = setmealService.getById(id);
+        SetmealVO setmealVO = setmealService.getByIdWithDish(id);
         return Result.success(setmealVO);
     }
 
     /**
-     * 编辑套餐
+     * 修改套餐
+     * @param setmealDTO
+     * @return
      */
     @PutMapping
+    @ApiOperation("修改套餐")
+    @CacheEvict(cacheNames = "setmealCache",allEntries = true)
     public Result update(@RequestBody SetmealDTO setmealDTO) {
-        log.info("编辑套餐：{}", setmealDTO);
         setmealService.update(setmealDTO);
         return Result.success();
     }
 
     /**
-     * 启用/禁用
+     * 套餐起售停售
+     * @param status
+     * @param id
+     * @return
      */
     @PostMapping("/status/{status}")
-    public Result startOrStop(@PathVariable Integer status, @RequestParam Long id) {
-        log.info("启用/禁用套餐：status={}, id={}", status, id);
+    @ApiOperation("套餐起售停售")
+    @CacheEvict(cacheNames = "setmealCache",allEntries = true)
+    public Result startOrStop(@PathVariable Integer status, Long id) {
         setmealService.startOrStop(status, id);
         return Result.success();
     }
-
-    /**
-     * 批量删除
-     */
-    @DeleteMapping
-    public Result delete(@RequestParam List<Long> ids) {
-        log.info("删除套餐：{}", ids);
-        setmealService.deleteBatch(ids);
-        return Result.success();
-    }
-
 }

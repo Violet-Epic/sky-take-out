@@ -4,7 +4,3 @@
 *.class
 *Test.java
 **/test/
-
-# 敏感配置
-application-secret.yml
-application-local.yml

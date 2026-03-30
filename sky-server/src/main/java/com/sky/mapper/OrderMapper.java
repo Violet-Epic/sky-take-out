@@ -1,74 +1,84 @@
 package com.sky.mapper;
 
 import com.github.pagehelper.Page;
+import com.sky.dto.GoodsSalesDTO;
 import com.sky.dto.OrdersPageQueryDTO;
 import com.sky.entity.Orders;
-import org.apache.ibatis.annotations.*;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
-/**
- * 订单 Mapper
- */
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
 @Mapper
 public interface OrderMapper {
+    /**
+     * 插入订单数据
+     * @param order
+     */
+    void insert(Orders order);
 
     /**
-     * 插入订单
+     * 根据订单号和用户id查询订单
+     * @param orderNumber
+     * @param userId
+     * @return
      */
-    @Insert("INSERT INTO orders (number, status, user_id, address_book_id, order_time, checkout_time, pay_method, pay_status, amount, remark, " +
-            "user_name, phone, address, consignee, estimated_delivery_time, delivery_status, " +
-            "pack_amount, tableware_number, tableware_status) " +
-            "VALUES (#{number}, #{status}, #{userId}, #{addressBookId}, #{orderTime}, #{checkoutTime}, " +
-            "#{payMethod}, #{payStatus}, #{amount}, #{remark}, #{userName}, #{phone}, #{address}, " +
-            "#{consignee}, #{estimatedDeliveryTime}, #{deliveryStatus}, #{packAmount}, #{tablewareNumber}, #{tablewareStatus})")
-    @Options(useGeneratedKeys = true, keyProperty = "id")
-    void insert(Orders orders);
+    Orders getByNumberAndUserId(@Param("orderNumber") String orderNumber, @Param("userId") Long userId);
 
     /**
-     * 根据id查询订单
+     * 修改订单信息
+     * @param orders
      */
-    @Select("SELECT * FROM orders WHERE id = #{id}")
-    Orders getById(Long id);
-
-    /**
-     * 根据订单号查询
-     */
-    @Select("SELECT * FROM orders WHERE number = #{number}")
-    Orders getByNumber(String number);
-
-    /**
-     * 更新订单
-     */
-    @Update("UPDATE orders SET status = #{status}, pay_status = #{payStatus}, checkout_time = #{checkoutTime}, " +
-            "cancel_reason = #{cancelReason}, rejection_reason = #{rejectionReason}, " +
-            "cancel_time = #{cancelTime}, delivery_time = #{deliveryTime} WHERE id = #{id}")
     void update(Orders orders);
 
     /**
-     * 分页查询订单
+     * 分页条件查询
+     * @param ordersPageQueryDTO
+     * @return
      */
-    Page<Orders> pageQuery(OrdersPageQueryDTO dto);
+    Page<Orders> pageQuery(OrdersPageQueryDTO ordersPageQueryDTO);
 
     /**
-     * 根据状态统计订单数量
+     * 根据id查询订单
+     * @param id
+     * @return
      */
-    @Select("SELECT COUNT(*) FROM orders WHERE status = #{status}")
-    Integer countByStatus(Integer status);
+    Orders getById(Long id);
 
     /**
-     * 统计某个日期范围内的营业额（已完成订单）
+     * 根据状态，分别查询出接待单，待派送、派送中的订单数量
+     * @param status
+     * @return
      */
-    @Select("SELECT SUM(amount) FROM orders WHERE status = 5 AND order_time BETWEEN #{begin} AND #{end}")
-    Double sumAmountByDate(java.time.LocalDateTime begin, java.time.LocalDateTime end);
+    Integer countStatus(Integer status);
 
     /**
-     * 统计某个日期范围内的订单数
+     * 根据状态和下单时间查询订单
+     * @param status
+     * @param orderTime
      */
-    @Select("SELECT COUNT(*) FROM orders WHERE order_time BETWEEN #{begin} AND #{end}")
-    Integer countOrderByDate(java.time.LocalDateTime begin, java.time.LocalDateTime end);
+    List<Orders> getByStatusAndOrderTime(@Param("status") Integer status, @Param("orderTime") LocalDateTime orderTime);
 
     /**
-     * 统计某个日期范围内的有效订单数（已完成）
+     * 根据动态条件统计营业额
+     * @param map
+     * @return
      */
-    @Select("SELECT COUNT(*) FROM orders WHERE status = 5 AND order_time BETWEEN #{begin} AND #{end}")
-    Integer countValidOrderByDate(java.time.LocalDateTime begin, java.time.LocalDateTime end);
+    Double sumByMap(Map map);
+
+    /**
+     * 根据动态条件统计订单数量
+     * @param map
+     * @return
+     */
+    Integer countByMap(Map map);
+
+    /**
+     * 查询商品销量排名
+     * @param begin
+     * @param end
+     */
+    List<GoodsSalesDTO> getSalesTop10(LocalDateTime begin, LocalDateTime end);
 }
